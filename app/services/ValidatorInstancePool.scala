@@ -10,13 +10,14 @@ import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-trait InstanceHandler {
+trait IValidatorInstancePool {
   def check(req: CheckQuery): Future[List[RuleMatch]]
   def shutdown(): Future[Unit]
 }
 
-class LanguageToolInstancePool(factory: LanguageToolFactory, noOfThreads: Int = 1) extends InstanceHandler {
+class ValidatorInstancePool(factory: IValidatorFactory, noOfThreads: Int = 1) extends IValidatorInstancePool {
   private val queue = new LinkedBlockingQueue[(CheckQuery, Promise[List[RuleMatch]])]()
+
   // Try to shutdown as soon as possible without processing the rest of the queue
   private val shutdownPromise = new AtomicReference[Option[Promise[Unit]]](None)
 
@@ -35,26 +36,29 @@ class LanguageToolInstancePool(factory: LanguageToolFactory, noOfThreads: Int = 
   }
 
   for {i <- 0 until noOfThreads} {
-    val threadName = s"language-tool-${factory.getName}-$i"
+    val threadName = s"validator-${factory.getName}-$i"
     Logger.info(s"Creating new thread: $threadName")
-    new Thread(new LanguageToolInstanceManager(factory, queue, shutdownPromise), threadName).start()
+    new Thread(new ValidatorInstanceManager(factory, queue, shutdownPromise), threadName).start()
   }
 }
 
-class LanguageToolInstanceManager(factory: LanguageToolFactory, queue: BlockingQueue[(CheckQuery, Promise[List[RuleMatch]])],
-                                  shutdownPromise: AtomicReference[Option[Promise[Unit]]]) extends Runnable {
+class ValidatorInstanceManager(factory: IValidatorFactory, queue: BlockingQueue[(CheckQuery, Promise[List[RuleMatch]])],
+                               shutdownPromise: AtomicReference[Option[Promise[Unit]]]) extends Runnable {
 
-  val languageTool = Try(factory.createInstance())
+  val validator = Try(factory.createInstance())
 
   override def run(): Unit = {
     while (shutdownPromise.get().isEmpty) {
       val (request, ret) = queue.take()
       Logger.info(s"Processing validation request in thread: ${Thread.currentThread.getName}")
-      languageTool match {
+      val startTime = System.currentTimeMillis()
+      validator match {
         case Success(tool) =>
           try {
             val response = tool.check(request)
-            ret.success(response.toList)
+            val finishTime = System.currentTimeMillis()
+            Logger.info(s"Validation request for thread: ${Thread.currentThread.getName} done in ${finishTime - startTime}ms")
+            ret.success(response)
           } catch {
             case NonFatal(err) =>
               ret.failure(err)
@@ -66,7 +70,7 @@ class LanguageToolInstanceManager(factory: LanguageToolFactory, queue: BlockingQ
     }
 
     // Shutdown
-    languageTool match {
+    validator match {
       case Success(tool) =>
         try {
           // Any shutdown logic goes here

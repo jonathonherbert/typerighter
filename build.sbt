@@ -3,7 +3,7 @@ organization := "com.gu"
 
 version := "1.0-SNAPSHOT"
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala, RiffRaffArtifact, JDebPackaging, SystemdPlugin)
+lazy val root = (project in file(".")).enablePlugins(PlayScala, RiffRaffArtifact, JDebPackaging, SystemdPlugin, GatlingPlugin)
 
 riffRaffArtifactResources := Seq(
   (packageBin in Debian).value -> s"${name.value}/${name.value}.deb",
@@ -23,8 +23,6 @@ javaOptions in Universal ++= Seq(
   "-Dconfig.file=/etc/gu/typerighter.conf"
 )
 
-scalaVersion := "2.12.6"
-
 val languageToolVersion = "4.3"
 
 resolvers += "Spring IO" at "https://repo.spring.io/plugins-release/"
@@ -34,3 +32,10 @@ libraryDependencies ++= Seq(
   "org.languagetool" % "language-en" % languageToolVersion,
   "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test
 )
+
+scalaVersion := "2.12.8"
+scalacOptions := Seq(
+  "-encoding", "UTF-8", "-target:jvm-1.8", "-deprecation",
+  "-feature", "-unchecked", "-language:implicitConversions", "-language:postfixOps")
+libraryDependencies += "io.gatling.highcharts" % "gatling-charts-highcharts" % "3.0.2" % "test,it"
+libraryDependencies += "io.gatling"            % "gatling-test-framework"    % "3.0.2" % "test,it"

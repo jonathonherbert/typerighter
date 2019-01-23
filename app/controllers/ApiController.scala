@@ -3,7 +3,7 @@ package controllers
 import model.{CheckQuery, RuleMatch}
 import play.api.libs.json.{JsResult, JsValue, Json}
 import play.api.mvc._
-import services.LanguageToolInstancePool
+import services.ValidatorInstancePool
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * This controller creates an `Action` to handle HTTP requests to the
  * application's home page.
  */
-class ApiController(cc: ControllerComponents, lt: LanguageToolInstancePool)(implicit ec: ExecutionContext) extends AbstractController(cc) {
+class ApiController(cc: ControllerComponents, lt: ValidatorInstancePool)(implicit ec: ExecutionContext) extends AbstractController(cc) {
   def index() = Action { implicit request: Request[AnyContent] =>
     Ok("{}")
   }
